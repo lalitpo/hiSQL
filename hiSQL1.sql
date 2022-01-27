@@ -45,6 +45,12 @@ No ORDER BY is required.
 
 SELECT DISTINCT Country FROM Customers;
 
+Difference between DISTINCT ON and DISTINCT ??
+
+Answer : DISTINCT applies to entire tuple(all the colums)
+DISTINCT ON applies to a single/specified column in your SELECT query.
+
+
 AGGREGATES :  Summation/count, min/max, average, etc.
 Result table will have one row.
 Cannot mix aggregates with non-aggregate expressions <e> in SELECT clause; PS : GROUP BY can change the effect
@@ -88,8 +94,6 @@ ORDER BY column_name(s);
 Above query is evaluated once per group(not per row).
 
 */
-
-
 /*
 BAG OPERATIONS : 
 Q1
@@ -106,7 +110,84 @@ Q2
 
 */
 
+--MULTI-DIMENSIONAL DATA
+
+DROP TABLE IF EXISTS prehistoric;
+CREATE TABLE prehistoric(category text, "herbivore?" boolean, legs int, species text);
+
+INSERT INTO prehistoric (category, "herbivore?", legs, species)
+VALUES
+('mammalia',true,2,'Megatherium'),
+('mammalia',true,4,'Paraceratherium'),
+('mammalia',false,2,NULL),
+('mammalia',false,4,'Sabretooth'),
+('reptilia',true,2,'Iguanodon'),
+('reptilia',true,4,'Brachiosaurus'),
+('reptilia',false,2,'Velociraptor'),
+('reptilia',false,4,NULL);
+
+TABLE prehistoric;
+
+-- GROUPING SETS : multiple GROUP BYs : Segregates GROUP BY in each of the columns defined under GROUPING SETS clause,
+-- and then presents the result by running UNION ALL in the background on all the groups.
+
+SELECT pH.category, 
+        pH."herbivore?",
+        pH.legs,
+        string_agg(pH.species,', ') AS species
+FROM prehistoric AS pH
+GROUP BY GROUPING SETS((category),("herbivore?"),(legs));
+ 
+-- Above query is equivalent to below :
+SELECT p.category,
+       NULL :: boolean             AS "herbivore?", -- ⎱  NULL is polymorphic ⇒ PostgreSQL
+       NULL :: int                 AS legs,         -- ⎰  will default to type text
+       string_agg(p.species, ', ') AS species
+FROM   prehistoric AS p
+GROUP BY p.category
+
+  UNION ALL
+
+SELECT NULL :: text                AS category,
+       p."herbivore?",
+       NULL :: int                 AS legs,
+       string_agg(p.species, ',' ) AS species
+FROM   prehistoric AS p
+GROUP BY p."herbivore?"
+
+  UNION ALL
+
+SELECT NULL :: text                AS category,
+       NULL :: boolean             AS "herbivore?",
+       p.legs AS legs,
+       string_agg(p.species, ', ') AS species
+FROM   prehistoric AS p
+GROUP BY p.legs;
+
+--ROLLUP : Combines all the GROUPING SETs in a reducing format(from any node upto the root node-which is null in all the columns defined in GROUPING SETS) of the columns list defined in GROUPING SETS clause.
+--combination made : cat+herb+legs, cat+herb+null, cat+null+null, null+null+null
+
+SELECT p.category,
+       p."herbivore?",
+       p.legs,
+       string_agg(p.species, ', ') AS species  -- string_agg ignores NULL (may use COALESCE(p.species, '?'))
+FROM   prehistoric AS p
+GROUP BY ROLLUP (category, "herbivore?", legs);
 
 
+-- GROUPBY() : NO groupism defined then all rows form a single large group:
+SELECT string_agg(p.species, ', ') AS species
+FROM   prehistoric AS p
+GROUP BY (); 
 
+
+-- CUBE : Combines all the GROUPING SETs individually with all the possible combinations of them 
+--including null values in columns also. 
+
+SELECT p.category,
+       p."herbivore?",
+       p.legs,
+       string_agg(p.species, ', ') AS species  -- string_agg ignores NULL (may use coalesce(p.species, '?'))
+FROM   prehistoric AS p
+GROUP BY CUBE (class, "herbivore?", legs);
 
