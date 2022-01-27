@@ -58,7 +58,7 @@ FROM DISTABLE AS t;
 FILTER and DISTINCT clause
 
 GROUP BY : While using GROUP BY clause, in SELECT clause, after the GROUPING columnm, 
-we must use aggregate on next column defined(field values) as its a bag of distinct(singular) rows returned after grouping. 
+we must use aggregate on next columns defined(field values) as its a bag of distinct(singular) rows returned after grouping. 
 Otherwise it will violate 1NF!
 
 Example : 
@@ -76,7 +76,7 @@ FROM DISTABLE AS t
 GROUP BY t.b;
 
 /*
-HAVING : used with GROUP BY, because WHERE keyword cannot be used with aggregate functions.
+HAVING : operates on GROUPs/used with GROUP BY, because WHERE keyword cannot be used with aggregate functions.
 
 SELECT column_name(s)
 FROM table_name
@@ -88,6 +88,24 @@ ORDER BY column_name(s);
 Above query is evaluated once per group(not per row).
 
 */
+
+
+/*
+BAG OPERATIONS : 
+Q1
+UNION ALL
+Q2
+
+Q1
+INTERSECT ALL
+Q2
+
+Q1
+EXCEPT ALL
+Q2
+
+*/
+
 
 
 
