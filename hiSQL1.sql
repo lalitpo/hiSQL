@@ -50,12 +50,32 @@ Result table will have one row.
 Cannot mix aggregates with non-aggregate expressions <e> in SELECT clause; PS : GROUP BY can change the effect
 
 */
---ORDERED AGGREGATES: They are non-commutative : string_agg for example
+--ORDERED AGGREGATES: They are non-commutative(change in order will affect their result) : string_agg for example
 SELECT string_agg(t.a :: text, ',' ORDER BY t.d) AS "ALL A"
 FROM DISTABLE AS t;
 
-/*FILTERED AND UNIQUE AGGREGATES: 
+/* FILTERED AND UNIQUE AGGREGATES: 
 FILTER and DISTINCT clause
+
+GROUP BY : While using GROUP BY clause, in SELECT clause, after the GROUPING columnm, 
+we must use aggregate on next column defined(field values) as its a bag of distinct(singular) rows returned after grouping. 
+Otherwise it will violate 1NF!
+
+Example : 
+*/
+
+--BELOW IS A VIOLATION
+SELECT t.b, t.d
+FROM DISTABLE AS t
+GROUP BY t.b;
+
+
+--BELOW IS CORRECT
+SELECT t.b AS b, SUM(t.d) AS "SUMD"
+FROM DISTABLE AS t
+GROUP BY t.b;
+
+/*
 HAVING : used with GROUP BY, because WHERE keyword cannot be used with aggregate functions.
 
 SELECT column_name(s)
@@ -65,7 +85,9 @@ GROUP BY column_name(s)
 HAVING condition
 ORDER BY column_name(s);
 
-Above query is evaluated once per group(not per row)
+Above query is evaluated once per group(not per row).
+
+*/
 
 
 
