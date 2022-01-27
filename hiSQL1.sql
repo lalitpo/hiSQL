@@ -28,19 +28,45 @@ Example :
 CREATE TABLE DISTABLE(a int, b text, c text, d int);
 
 INSERT INTO DISTABLE (a, b, c, d)
-VALUES(5,'x','T',NULL),(4,'y','F',20),(3,'x','F',30),(2,'y','T',40),(1,'x','T',10);
+VALUES(5,'x','T',NULL),
+(4,'y','F',20),
+(3,'x','F',30),
+(2,'y','T',40),
+(1,'x','T',10);
 
 TABLE DISTABLE;
 
 SELECT DISTINCT ON (t.c) t.*
 FROM DISTABLE AS t
-ORDER BY t.c, t.d ASC;
+ORDER BY t.c, t.d;
  
-
 /*SELECT DISTINCT  :  Extracts only one row among a group of duplicate rows. 
 No ORDER BY is required.
 
+SELECT DISTINCT Country FROM Customers;
 
-AGGREGATES :  Summation, maximum, average, etc.
-Cannot mix aggregates with non-aggregate expressions <e> in SELECT clause 
+AGGREGATES :  Summation/count, min/max, average, etc.
+Result table will have one row.
+Cannot mix aggregates with non-aggregate expressions <e> in SELECT clause; PS : GROUP BY can change the effect
+
 */
+--ORDERED AGGREGATES: They are non-commutative : string_agg for example
+SELECT string_agg(t.a :: text, ',' ORDER BY t.d) AS "ALL A"
+FROM DISTABLE AS t;
+
+/*FILTERED AND UNIQUE AGGREGATES: 
+FILTER and DISTINCT clause
+HAVING : used with GROUP BY, because WHERE keyword cannot be used with aggregate functions.
+
+SELECT column_name(s)
+FROM table_name
+WHERE condition
+GROUP BY column_name(s)
+HAVING condition
+ORDER BY column_name(s);
+
+Above query is evaluated once per group(not per row)
+
+
+
+
