@@ -182,7 +182,9 @@ GROUP BY ();
 
 
 -- CUBE : Combines all the GROUPING SETs individually with all the possible combinations of them 
---including null values in columns also. 
+--combination made : cat+herb+legs, cat+herb+null, cat+null+null, 
+--                   null+herb+legs, null+null+legs, cat+null+legs
+--                   null+herb+null,  null+null+null
 
 SELECT p.category,
        p."herbivore?",
@@ -190,4 +192,52 @@ SELECT p.category,
        string_agg(p.species, ', ') AS species  -- string_agg ignores NULL (may use coalesce(p.species, '?'))
 FROM   prehistoric AS p
 GROUP BY CUBE (class, "herbivore?", legs);
+
+
+/*SQL Evaluation Order vs Reading Order
+
+Reading Order is straightforward : as the statement is written, sequential reading
+
+Evaluation : 
+
+1. FROM
+2. WHERE
+3. SELECT <GROUP BY COLUMN : gbc >(num 3 is SELECT only if GROUP BY clause is written)
+4. GROUP BY <gbc>
+5. HAVING
+6. any AGGREGATEs column defined in SELECT query
+7. DISTINCT ON clause in SELECT query(if defined)
+8. UNION/INTERSECT/EXCEPT(Joining of statements)
+9. ORDER BY
+10. OFFSET/LIMIT
+
+
+WITH CTEs
+Advantage over SUB-QUERIES :
+makes code more readable, 
+can call recursively, 
+can reuse again,
+can create a temp table on the go and use it for quering anything without a table creation: see query prehistoric1 below. 
+For more info : https://learnsql.com/blog/sql-subquery-cte-difference/
+
+*/
+
+DROP TABLE IF EXISTS prehistoric1
+
+WITH prehistoric1(category, "herbivore?", legs, species) AS(
+    VALUES('mammalia',true,2,'Megatherium'),
+('mammalia',true,4,'Paraceratherium'),
+('mammalia',false,2,NULL),
+('mammalia',false,4,'Sabretooth'),
+('reptilia',true,2,'Iguanodon'),
+('reptilia',true,4,'Brachiosaurus'),
+('reptilia',false,2,'Velociraptor'),
+('reptilia',false,4,NULL)
+)
+SELECT MAX(p.legs)
+FROM prehistoric1 AS p;
+
+TABLE prehistoric1;
+
+
 
