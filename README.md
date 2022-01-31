@@ -20,6 +20,6 @@ WITH CTEs
 Arrays_and_UDF.sql :
 
 Array operations,
-Multi-dimensional array
+Multi-dimensional array,
 User-Defined Functions
 
