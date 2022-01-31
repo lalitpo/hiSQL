@@ -18,6 +18,7 @@ SQL Evaluation Order vs Reading Order
 WITH CTEs
 
 Arrays.sql :
-Array operations
+
+Array operations,
 Multi-dimensional array
 
