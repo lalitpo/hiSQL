@@ -17,8 +17,9 @@ CUBE
 SQL Evaluation Order vs Reading Order
 WITH CTEs
 
-Arrays.sql :
+Arrays_and_UDF.sql :
 
 Array operations,
 Multi-dimensional array
+User-Defined Functions
 
