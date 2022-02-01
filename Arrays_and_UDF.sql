@@ -223,3 +223,238 @@ SELECT generate_subscripts(ARRAY['foo','bar','baz'], 2);
 
 --TEXT GENERATORS
  
+--regexp_matches(‹t›,‹reg›,'g') : returns a text array of all of the captured substrings resulting from matching a POSIX regular expression pattern
+--  t is input string to check, <reg> is regular expression to check with, 'g' is a flag indicating to return each match in the string, not only the first one, and return a row for each such match. 
+
+SELECT regexp_matches('foobarbequebaz', '(bar)(beque)');
+
+SELECT regexp_matches('foobarbequebazilbarfbonk', '(b[^b]+)(b[^b]+)', 'g');
+
+SELECT regexp_matches('foobarbequebaz', 'barbeque');
+
+-- Breaking Bad: Parse a chemical formula
+--
+-- (C₆H₅O₇³⁻ is Citrate)
+
+-- Variant on slide: report NULL (≡ no charge) if charge unspecified
+SELECT t.match[1] AS element, t.match[2] AS "# atoms", t.match[3] AS charge
+FROM   regexp_matches('C₆H₅O₇³⁻',
+                      '([A-Za-z]+)([₀₁₂₃₄₅₆₇₈₉]*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+[⁺⁻])?',
+                      'g')                    -- ────────────────
+       AS t(match);                           -- does not match if no charge ⇒ yields NULL
+
+
+SELECT t.match[1] AS element, t.match[2] AS "# atoms", t.match[3] AS charge
+FROM   regexp_matches('C₆H₅O₇³⁻',                                            -- input text ‹t›
+                      '([A-Za-z]+)([₀₁₂₃₄₅₆₇₈₉]*)((?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+[⁺⁻])?)',  -- regular expression ‹re›
+                      'g')                    -- ─────────────────────
+       AS t(match);                           -- matches empty string if no charge ⇒ yields ''
+
+
+--regexp_split_to_table(‹t›,‹reg›) : splits a string using regular expression pattern as a delimiter. Returns in table form.
+
+SELECT foo FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', '\s+') AS foo;
+
+-- Split string into whitespace-separated words
+--
+SELECT t.word
+FROM   regexp_split_to_table('Luke, I am Your Father', '\s+') AS t(word);
+--                                                       ↑
+--                       any white space character, alternatively: [[:space:]]
+
+--regexp_split_to_array(‹t›,‹reg›) : splits a string using regular expression pattern as a delimiter. Returns in array form.
+
+SELECT regexp_split_to_array('the quick brown fox jumps over the lazy dog', '\s+');
+
+
+
+--USER DEFINED FUNCTIONS:
+
+-- CREATE FUNCTION fname(arg1, arg2, ...., argn) RETURNS <abc> A
+--  $$
+--<QUERY1>
+--<QUERY1>
+--.
+--.
+--.
+--<QUERYN>
+-- $$
+-- LANGUGAGE SQL [IMMUTABLE] : means no write data being done, only for select queries, no side effect on database records, no DML queries.
+-- Can use VOLATILE if not IMMUTABLE
+--Overloading of functions is possible only if the function name and type of argument list is unique.
+--Limited polymorphism : any argument and return type may be anyelement/anyarray/anyenum/anyrange and more than once of such occurence indicates the same function.
+-- f1(a,a) -> returns boolean
+-- f1(a,b) -> returns boolean ... this is not possible: limited polymorphism
+
+
+-- Atomic return type (int)
+-- Map subscript symbols to their numeric value: '₀' to 0, '₁' to 1, ...
+-- (returns NULL if a non-subscript symbol is passed)
+--
+DROP FUNCTION IF EXISTS subscript(text);
+CREATE FUNCTION subscript(s text) RETURNS int AS
+$$
+  SELECT subs.value
+  FROM   (VALUES ('₀', 0),
+                 ('₁', 1),
+                 ('₂', 2),
+                 ('₃', 3),
+                 ('₄', 4),
+                 ('₅', 5),
+                 ('₆', 6),
+                 ('₇', 7),
+                 ('₈', 8),
+                 ('₉', 9)) AS subs(sym,value)
+  WHERE  subs.sym = s
+$$
+LANGUAGE SQL IMMUTABLE;
+
+
+-- Alternative variant using array/WITH ORDINALITY
+--
+DROP FUNCTION IF EXISTS subscript(text);
+CREATE FUNCTION subscript(s text) RETURNS int AS
+$$
+  SELECT subs.value::int - 1
+  FROM   unnest(array['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'])
+         WITH ORDINALITY AS subs(sym,value)
+  WHERE  subs.sym = s
+$$
+LANGUAGE SQL IMMUTABLE;
+
+
+-- Modify chemical formula parser (see above): returns actual atom count
+--
+--                                 ↓
+SELECT t.match[1] AS element, subscript(t.match[2]) AS "# atoms", t.match[3] AS charge
+FROM   regexp_matches('C₆H₅O₇³⁻',
+                      '([A-Za-z]+)([₀₁₂₃₄₅₆₇₈₉]*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+[⁺⁻])?',
+                      'g')                    -- ────────────────
+       AS t(match);                           -- does not match if no charge ⇒ yields NULL
+
+
+
+-- Atomic return type (text), incurs side effect
+-- Generate a unique ID of the form '‹prefix›###' and log time of generation
+--
+DROP TABLE IF EXISTS issue;
+CREATE TABLE issue (
+  id     int GENERATED ALWAYS AS IDENTITY,
+  "when" timestamp);
+
+DROP FUNCTION IF EXISTS new_ID(text);
+CREATE FUNCTION new_ID(prefix text) RETURNS text AS
+$$
+  INSERT INTO issue(id, "when") VALUES
+    (DEFAULT, 'now'::timestamp)
+  RETURNING prefix || id::text
+$$
+LANGUAGE SQL VOLATILE;
+--              ↑
+--  "function" incurs a side-effect
+
+
+-- Everybody is welcome as our customer, even bi-pedal dinosaurs!
+--
+SELECT new_ID('customer') AS customer, d.species
+FROM   dinosaurs AS d
+WHERE  d.legs = 2;
+
+-- How is customer acquisition going?
+TABLE issue;
+
+
+
+-- Table-generating UDF (polymorphic): unnest a two-dimensional array
+-- in column-major order:
+--
+CREATE OR REPLACE FUNCTION unnest2(xss anyarray)
+  RETURNS SETOF anyelement AS
+$$
+SELECT xss[i][j]
+FROM   generate_subscripts(xss,1) _(i),
+       generate_subscripts(xss,2) __(j)
+ORDER BY j, i  --  return elements in column-major order
+$$
+LANGUAGE SQL IMMUTABLE;
+
+                    --  columns of 2D array
+SELECT t.*          --      ↓   ↓   ↓
+FROM   unnest2(array[array['a','b','c'],
+                     array['d','e','f'],
+                     array['x','y','z']])
+       WITH ORDINALITY AS t(elem,pos);
+
+
+
+--LATERAL : While using multiple tables with comma in FROM clause like below :
+-- SELECT .... FROM Q1 AS t1,  Q2 AS t2,  Q3 AS t3
+--SELECT t₁.tree, MAX(t₂.label) AS "largest label"
+--FROM Trees AS t₁, unnest(t₁.labels) AS t₂(label)
+--GROUP BY t₁.tree;
+-- Dependent iteration ({{here}}:  t₂ depends on t₁ defined
+--Exception: the arguments of table-generating functions may refer to row variables defined earlier (like t₁).
+
+-- Use LATERAL for explicitly defining them
+--Prefix  ⱼ with LATERAL in the FROM clause to announce dependent iteration:
+--SELECT ⋯ FROM  Q₁ AS t₁, …, LATERAL  Qjⱼ AS tj, …
+
+--Works for any table-valued SQL expression  ⱼ, subqueries in (⋯) in particular.
+--Good style: be explicit and use LATERAL even with table-generating functions.
+
+--SELECT  e FROM  Q₁ AS t₁, LATERAL  Q₂ AS t₂, LATERAL  Q₃ AS t₃
+--is evaluated just like this nested loop:
+--for Q₁ in  t₁
+---for Q₂ in  t₂(t₁)
+----for Q₃ in  t₃(t₁,t₂)
+-----return  e(t₁,t₂,t₃)
+-- Exception: dependent iteration OK in table-generating functions
+--
+SELECT t.tree, MAX(node.label) AS "largest label"
+FROM   Trees AS t,
+       LATERAL unnest(t.labels) AS node(label)  -- ⚠ refers to t.labels: dependent iteration
+GROUP BY t.tree;
+
+
+-- Equivalent reformulation (dependent iteration → subquery in SELECT)
+--
+SELECT t.tree, (SELECT MAX(node.label)
+                FROM   unnest(t.labels) AS node(label)) AS "largest label"
+FROM   Trees AS t
+GROUP BY t.tree;
+
+
+-- ⚠ This reformulation is only possible if the subquery yields
+--   a scalar result (one row, one column) only ⇒ LATERAL is more general.
+--   See the example (and its somewhat awkward reformulation) below.
+
+
+
+-- Find the three tallest two- or four-legged dinosaurs:
+--
+SELECT locomotion.legs, tallest.species, tallest.height
+FROM   (VALUES (2), (4)) AS locomotion(legs),
+       LATERAL (SELECT d.*
+                FROM   dinosaurs AS d
+                WHERE  d.legs = locomotion.legs
+                ORDER BY d.height DESC
+                LIMIT 3) AS tallest;
+
+
+-- Equivalent reformulation without LATERAL
+--
+WITH ranked_dinosaurs(species, legs, height, rank) AS (
+  SELECT d1.species, d1.legs, d1.height,
+         (SELECT COUNT(*)                          -- number of
+          FROM   dinosaurs AS d2                   -- dinosaurs d2
+          WHERE  d1.legs = d2.legs                 -- in d1's peer group
+          AND    d1.height <= d2.height) AS rank   -- that are as large or larger as d1
+  FROM   dinosaurs AS d1
+  WHERE  d1.legs IS NOT NULL
+)
+SELECT d.legs, d.species, d.height
+FROM   ranked_dinosaurs AS d
+WHERE  d.legs IN (2,4)
+AND    d.rank <= 3
+ORDER BY d.legs, d.rank;
+
