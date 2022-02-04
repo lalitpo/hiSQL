@@ -124,9 +124,6 @@ FROM   (VALUES ('x'),
                ('👩🏾')
        ) AS t(c);
 
-
-
-
 -- Postgres Character Set Support Documentation
 
 -- Example:
@@ -146,10 +143,28 @@ SELECT octet_length('012346789' :: varchar(5)) AS c1, -- 5 (truncation)
 
 -- Leading zeroes are not stored in database, neither trailing zeroes for decimals are stored.
 
--- Important query to go through : Tupper's Formula (from the file tuppers-formula.sql)
+-- ¹ PostgresSQL actual limits:
+--   up to 131072 digits before the decimal point,
+--   up to 16383 digits after the decimal point
+
+
+-- The following two queries to "benchmark" the
+-- performance of numeric(.,.) vs. int arithmetics
+-- (also see the resulting row width as output by EXPLAIN):
+
+EXPLAIN ANALYZE  -- EXPLAIN ANALYZE outputs the query plan for a given query
+-- 1M rows of byte width 32
+WITH one_million_rows(x) AS (
+  SELECT t.x :: numeric(8,0)
+  FROM   generate_series(0, 1000000) AS t(x)
+)
+SELECT t.x + t.x AS add       -- ⎱ execution time for + (CTE Scan): ~ 2s
+FROM   one_million_rows AS t; -- ⎰
+
+-- Tupper's Formula : 
 
 -- Since \set does not work in VS Code, the code has been updated with the actual values of k 
--- and attached along with this file as chapter03.sql.
+
 
 ----------------------------------------------------------------------------------------------------
 -- Video 15 : Types date/time/timestamps/interval, date/time arithmetic
