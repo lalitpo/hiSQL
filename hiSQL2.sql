@@ -90,20 +90,30 @@ COPY T(a,b,c,d) FROM STDIN WITH (FORMAT CSV, NULL '▢');
 
 TABLE T;
 
-
-
 ----------------------------------------------------------------------------------------------------
 -- String data types (char/varchar/text), type numeric(s,p)
 ----------------------------------------------------------------------------------------------------
 
 -- Text Data types: char, varchar, text
 
+SELECT '01234' :: char(3);   -- truncation to enforce limit after cast
+--     └──┬──┘               -- NB: column name is `bpchar': blank-padded characters,
+--      text                 --     PostgreSQL-internal name for char(‹n›)
+
+
 -- The length limits are measured in characters and not in bytes (PostgreSQL: max size is approx 1 Gb). 
 -- Excess characters might yield run time errors. Also, while explicit casting, the length might be 
 -- truncated to the max length of desired data type.
 -- text data type is used over char due to the weird behaviour of char data type.
 
--- Example:
+-- Examples:
+
+
+-- Blank-padding when storing/printing char(‹n›)
+SELECT t.c :: char(10)
+FROM   (VALUES ('01234'),    -- padding with 5 × '␣' padding when result is printed
+               ('0123456789')
+       ) AS t(c);
 
 
 SELECT t.c,
