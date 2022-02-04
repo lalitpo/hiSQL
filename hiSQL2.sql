@@ -664,21 +664,57 @@ WHERE  circle(point(0.5,0.5), 0.5) @> point(random(),random());
 -- held in table cells (we still consider 1NF to be intact).
 
 -- jsonb
+
+-- Literal string syntax embeds JSON ‹value›s in SQL queries.
+-- Casting to type jsonb validates and encodes JSON syntax:
+
+-- Example :   
+
 VALUES (1, '{ "b":1, "a":2 }'       ::jsonb),  -- ← pair order may flip
        (2, '{ "a":1, "b":2, "a":3 }'       ),  -- ← duplicate field
        (3, '[ 0,   false,null ]'           );  -- ← whitespace normalized
+
+-- Since the first row defines the field type of the entire table, we have used explicit casting
+-- to jsonb 
+-- Alternative type json preserves member order, duplicate fields, and whitespace.
+-- Reparses JSON values on each access, no index support.
 
 -- json
 VALUES (1, '{ "b":1, "a":2 }'       ::json ),  -- ← pair order and ...
        (2, '{ "a":1, "b":2, "a":3 }'       ),  -- ← ... duplicates preserved
        (3, '[ 0,   false,null ]'           );  -- ← whitespace preserved
 
+-- Navigating JSON values :   
 
+-- We can access a field f or element at index i in an array <value> via -> or ->>
+
+-- ‹value›->‹f› ⎱ yields a jsonb value, permits further
+-- ‹value›->‹i› ⎰ navigation steps via ->, ->>
+
+-- ‹value›->>‹f› ⎱ yields a text value (cast to atomic type
+-- ‹value›->>‹i› ⎰ for further computation)
+
+-- Path navigation: chain multiple navigation steps via #> or #>>: 
+-- ‹value› #> '{‹f ᵒʳ i›,...,‹f ᵒʳ i›}'.
 
 -- Navigating in an extracting from a JSON value
 SELECT ('{ "a":0, "b": { "b₁":1, "b₂":2 } }' :: jsonb -> 'b' ->> 'b₂')::int + 40;
 --                                                            ↑
 --                                       extract as text (cannot cast jsonb to τ)
+
+-- Bridging between JSON and SQL : 
+
+-- We can convert the fields / nested values inside a JSON object / array into tables
+-- using the following inbuilt methods :
+
+-- SELECT * FROM json_each(<o>)             -- where <o> is a JSON object
+-- SELECT * FROM jsonb_array_elements(<a>)  -- where <a> is an array
+
+-- Note that the ordering when converting array into tables is not maintained
+-- when we use the syntax mentioned above. However, it is possible to maintain the order
+
+-- Constructing JSON from SQL :   
+
 
 
 -------------------------------
