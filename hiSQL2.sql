@@ -482,27 +482,59 @@ COPY (
 ) TO PROGRAM 'base64 -D > /tmp/GlaDOS-says.wav';
 
 ----------------------------------------------------------------------------------------------------
--- Video 18 :
+-- Range/interval types and operations
 ---------------------------------------------------------------------------------------------------- 
 
--- SQL File reference : data-types.sql
+-- Ranges (Intervals):
+
+-- Range literals can be of type int4, int8, num(eric), timestamp, date
+
+SELECT '(1, 10]'::int4range;
+
+-- OUTPUT : [2, 11)
+
+-- Let r1, r2 and r3 be three ranges
+-- Let p be any point in this range
+
+-- r₁ ⁅──────────[
+-- r₂            ⁅─────[
+-- r₃   ⁅─────[        ┊
+-- p  ･ ┊     ┊        ┊
+-- ----------------------> τ
+--      ┊     ┊       ┊         r₁ @> p r₃ <@ r₁ contains, contained by
+--      ┊     ┊       ┊         r₁ -|- r₂ is adjacent to
+--      ┊     ┊       ┊         r₃ << r₂ r₁ << r₂ strictly left of
+--      ⁅─────┊───────[         r₂ + r₃ union
+--      ⁅─────[                 r₁ ＊ r₃ intersection
+--                              r₁ && r₃ overlaps
+
+-- There are also some additional range supporting functions:
+
+-- lower(･), upper(･) (bound extraction)
+-- lower_inc(･) (bound closed?), lower_inf(･) (unbounded?)
+-- isempty(･)
+
+-- Check for the intersection of two intervals
+SELECT int4range(1, 5, '[]') * '[5, 10)'::int4range;
+
+-- OUTPUT : [5,6)
 
 ----------------------------------------------------------------------------------------------------
--- Video 19 :
+-- Geometric objects and operations, use case: shape scanner
 ----------------------------------------------------------------------------------------------------
 
--- SQL File reference : data-types.sql
+-- 
 
 ----------------------------------------------------------------------------------------------------
--- Video 20 :
+-- 
 ----------------------------------------------------------------------------------------------------
 
--- SQL File reference : data-types.sql
+-- 
 
 ----------------------------------------------------------------------------------------------------
--- Video 21 : 
+--  
 ----------------------------------------------------------------------------------------------------
 
--- SQL File reference : data-types.sql
+-- 
 
 ----------------------------------------------------------------------------------------------------
