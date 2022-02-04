@@ -2,12 +2,32 @@
 -- Key Concepts Covered :  Built-in data types, casting, string data type, numeric data type, 
 -- date / time / timestamps, intervals, user defined data types, bit strings, blobs, bit arrays,
 
--- Reference Material : Chapter03 Slides , Chapter03 Material
-
 ----------------------------------------------------------------------------------------------------
--- Video 13: PostgreSQL built-in data types, CAST, casting text literals
+-- PostgreSQL built-in data types, CAST, casting text literals
+----------------------------------------------------------------------------------------------------
 
--- SQL File reference : data-types.sql
+-- Query the PostgreSQL system catalog for the supported data types:
+
+SELECT t.typname
+FROM   pg_catalog.pg_type AS t
+WHERE  t.typelem  = 0      -- disregard array element types
+AND  t.typrelid = 0;     -- list non-composite types only
+
+-- Create a table T
+
+DROP TABLE IF EXISTS T;
+
+CREATE TABLE T (a int PRIMARY KEY,
+                b text,
+                c boolean,
+                d int);
+
+INSERT INTO T VALUES
+  (1, 'x',  true, 10),
+  (2, 'y',  true, 40),
+  (3, 'x', false, 30),
+  (4, 'y', false, 20),
+  (5, 'x',  true, NULL);
 
 -- CAST Operator :  Converts value of one type to another.
 
@@ -21,6 +41,18 @@
 -- insertion has value null for a record). 
 -- Type casting can fail at runtime in certain cases.
 -- SQL also supports casting complex literals(text to json, date, csv etc.)
+
+-- (Implicit) Type casts
+
+-- Runtime type conversion
+SELECT 6.2 :: int;          -- ➝ 6
+SELECT 6.6 :: int;          -- ➝ 7
+SELECT date('May 4, 2020'); -- ➝ 2020-05-04 (May the Force ...)
+
+-- Implicit conversion if target type is known (here: schema of T)
+INSERT INTO T(a,b,c,d) VALUES (6.2, NULL, 'true', '0');
+--                              ↑     ↑      ↑     ↑
+--                             int  text  boolean int
 
 
 -- Literal input syntax using '...' (cast from text to any other type):
@@ -36,13 +68,33 @@ FROM   (VALUES ('true', 'false'),
 
 
 -- The result of each of the records would be true or false since we're casting the literals.
--- For more examples, refer slides.
+
+-- May use $‹id›$...$‹id›$ instead of '...'
+SELECT $$<t a='42'><l/><r/></t>$$ :: xml;
+
+-- Type casts perform computation, validity checks, and thus are *not* for free:
+SELECT $$<t a='42'><l/><r></t>$$ :: xml;
+--                      ↑
+--              ⚠ no closing tag
+
+-- Implicit cast from text to target during *input conversion*:
+DELETE FROM T;
+
+COPY T(a,b,c,d) FROM STDIN WITH (FORMAT CSV, NULL '▢');
+1,x,true,10
+2,y,true,40
+3,x,false,30
+4,y,false,20
+5,x,true,▢
+\.
+
+TABLE T;
+
 
 
 ----------------------------------------------------------------------------------------------------
--- Video 14 : String data types (char/varchar/text), type numeric(s,p)
-
--- SQL File reference : data-types.sql , tuppers-formula.sql
+-- String data types (char/varchar/text), type numeric(s,p)
+----------------------------------------------------------------------------------------------------
 
 -- Text Data types: char, varchar, text
 
@@ -91,8 +143,7 @@ SELECT octet_length('012346789' :: varchar(5)) AS c1, -- 5 (truncation)
 
 ----------------------------------------------------------------------------------------------------
 -- Video 15 : Types date/time/timestamps/interval, date/time arithmetic
-
--- SQL File reference : data-types.sql
+----------------------------------------------------------------------------------------------------
 
 -- Timestamps and time intervals:
 
@@ -163,8 +214,7 @@ WHERE  (holiday.start :: date, holiday.end :: date) overlaps ('today','today');
 
 ----------------------------------------------------------------------------------------------------
 -- Video 16 : User-defined types: enumerations (CREATE TYPE ... AS ENUM)
-
--- SQL File reference : data-types.sql
+----------------------------------------------------------------------------------------------------
 
 -- Enumerations:
 
@@ -181,31 +231,33 @@ CREATE TYPE episode AS ENUM
   ('ANH', 'ESB', 'TPM', 'AOTC', 'ROTS', 'ROTJ', 'TFA', 'TLJ', 'TROS');
 
 ----------------------------------------------------------------------------------------------------
-
--- Video 17 : Bit strings (bit(n)), BLOBS, and byte arrays (bytea)
-
--- SQL File reference : data-types.sql
+-- Video 17 : Bit strings (bit(n)), BLOBS, and byte arrays (bytes)
+----------------------------------------------------------------------------------------------------
 
 -- Bit strings : 
 
 
 ----------------------------------------------------------------------------------------------------
--- Video 18 : 
+-- Video 18 :
+---------------------------------------------------------------------------------------------------- 
 
 -- SQL File reference : data-types.sql
 
 ----------------------------------------------------------------------------------------------------
--- Video 19 : 
+-- Video 19 :
+----------------------------------------------------------------------------------------------------
 
 -- SQL File reference : data-types.sql
 
 ----------------------------------------------------------------------------------------------------
--- Video 20 : 
+-- Video 20 :
+----------------------------------------------------------------------------------------------------
 
 -- SQL File reference : data-types.sql
 
 ----------------------------------------------------------------------------------------------------
 -- Video 21 : 
+----------------------------------------------------------------------------------------------------
 
 -- SQL File reference : data-types.sql
 
