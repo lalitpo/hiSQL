@@ -215,7 +215,7 @@ GROUP BY t.y
 ORDER BY t.y;
 
 ----------------------------------------------------------------------------------------------------
--- Video 15 : Types date/time/timestamps/interval, date/time arithmetic
+-- Types date/time/timestamps/interval, date/time arithmetic
 ----------------------------------------------------------------------------------------------------
 
 -- Timestamps and time intervals:
@@ -223,6 +223,11 @@ ORDER BY t.y;
 -- Casting a date into timestamp sets the time to 00:00:00 for that particular date by default 
 -- and timestamps also have optional time zone support represented by <t> with time zone or <t>tz .
 
+-- Timestamps/Intervals
+
+SELECT 'now'::date      AS "now (date)",
+       'now'::time      AS "now (time)",
+       'now'::timestamp AS "now (timestamp)";
 
 -- Timestamps may be optionally annotated with time zones
 SELECT 'now'::timestamp AS now,
@@ -251,6 +256,22 @@ SELECT '5-4-2020' :: date;  -- April 4, 2020
 -- Back to the default datestyle
 SET datestyle='ISO,MDY';
 
+-- Examples :
+
+-- Dates may be specified in a variety of forms
+SELECT COUNT(DISTINCT birthdays.d::date) AS interpretations
+FROM   (VALUES ('August 26, 1968'),
+               ('Aug 26, 1968'),
+               ('8.26.1968'),
+               ('08-26-1968'),
+               ('8/26/1968')) AS birthdays(d);
+
+-- Special timestamps and dates
+SELECT 'epoch'::timestamp    AS epoch,
+       'infinity'::timestamp AS infinity,
+       'today'::date         AS today,
+       'yesterday'::date     AS yesterday,
+       'tomorrow'::date      AS tomorrow;
 
 
 -- ISO notations have been set up to represent date time together. Given below is an example :
@@ -264,11 +285,45 @@ SET datestyle='ISO,MDY';
 --      └──┬──┘└──┬──┘
 --   date part   time part
 
+-- Examples :
+
+-- Date/time arithmetics with intervals
+
+SELECT 'Aug 31, 2035'::date - 'now'::timestamp                     AS retirement,
+       'now'::date + '30 days'::interval                           AS in_one_month,
+       'now'::date + 2 * '1 month'::interval                       AS in_two_months,
+       'tomorrow'::date - 'now'::timestamp                         AS til_midnight,
+        extract(hours from ('tomorrow'::date - 'now'::timestamp))  AS hours_til_midnight,
+       'tomorrow'::date - 'yesterday'::date                        AS two, -- ⚠ yields int
+       make_interval(days => 'tomorrow'::date - 'yesterday'::date) AS two_days;
+
+-- Printing the last day of every month
+
+--                year    month  day
+--                 ↓        ↓     ↓
+SELECT (make_date(2020, months.m, 1) - '1 day'::interval)::date AS last_day_of_month
+FROM   generate_series(1,12) AS months(m);
+
+-- Show the time zome difference between current time zone and different time zones
+
+SELECT timezones.tz AS timezone,
+       'now'::timestamp with time zone -- uses default ("show time zone")
+         -
+       ('now'::timestamp::text || ' ' || timezones.tz)::timestamp with time zone AS difference
+FROM   (VALUES ('America/New_York'),
+               ('Europe/Berlin'),
+               ('Asia/Tokyo'),
+               ('PST'),
+               ('UTC'),
+               ('UTC-6'),
+               ('+3')
+       ) AS timezones(tz)
+ORDER BY difference;
+
 
 -- Overlapping date/time intervals can be determined by the overlap function in PostgreSQL.
 
 -- Example:
-
 
 -- Do two periods of date/time overlap (infix operator 'overlaps')?
 
@@ -280,13 +335,8 @@ FROM   (VALUES ('Easter',    'Apr  6, 2020', 'Apr 18, 2020'),
                ('Winter',    'Dec 23, 2020', 'Jan  9, 2021')) AS holiday(holiday, "start", "end")
 WHERE  (holiday.start :: date, holiday.end :: date) overlaps ('today','today');
 
-
--- For more extensive documentation on time zones, please refer material and data-types.sql.
-
--- SQL Query File : chapter03.sql
-
 ----------------------------------------------------------------------------------------------------
--- Video 16 : User-defined types: enumerations (CREATE TYPE ... AS ENUM)
+-- User-defined types: enumerations (CREATE TYPE ... AS ENUM)
 ----------------------------------------------------------------------------------------------------
 
 -- Enumerations:
