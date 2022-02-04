@@ -399,6 +399,88 @@ ORDER BY s.film; -- s.release; -- yields chronological order
 -- String-like operations: || (concatenation), length(･),
 -- bit_length(･), octet_length(･), position(･ in ･), …
 
+-- Binary Arrays (BLOBs) :
+
+-- Store binary large object blocks(BLOBs) in the column of type bytea in form of in-line
+-- alphanumeric data.
+-- BLOBs remain uninterpreted by DBMS.   
+
+-- BLOBs are stored alongside indentifying key data and additional properties i.e. the file metadata
+-- is made explicit to filter/group/order BLOBs.   
+
+-- Encoding/Decoding BLOBs :
+
+-- The binary data present in the file system has to be converted into a bytea column of the table to
+-- store data inside POSTGRESQL. 
+
+-- We can either use a UDF or standard POSTGRESQL functions like lo_import()
+
+-- The other way is to encode the binary data into a base64 text string and then decode it again
+-- into a bytea column (decode is function available in Postgres)
+
+-- The file I/O is performed by the DBMS server
+
+-- Example:
+
+-- Store and play GLaDOS voice lines from Portal 1 & 2
+
+DROP TYPE IF EXISTS edition CASCADE;
+
+CREATE TYPE edition AS ENUM ('Portal 1', 'Portal 2');
+
+DROP TABLE IF EXISTS glados;
+
+CREATE TABLE glados (id     int PRIMARY KEY, -- key
+                     voice  bytea,           -- BLOB data
+                     line   text,            -- ⎱ meta data,
+                     portal edition);        -- ⎰ properties
+
+-- User-defined Python procedure: read BLOB from file
+
+-- In case the extensions, don't work, you might need to check for python version
+-- as well as set the correct path and environment variables.
+
+CREATE EXTENSION IF NOT EXISTS plpython3u;
+
+DROP FUNCTION IF EXISTS read_blob(text) CASCADE;
+CREATE FUNCTION read_blob(blob text) RETURNS bytea AS
+$$
+  try:
+    file = open(blob)
+    return file.read()
+  except:
+    pass
+  #could not read file, return NULL
+  return None
+$$ LANGUAGE plpython3u;
+
+-- Insert values into the table 
+
+INSERT INTO glados(id, line, portal, voice)
+  SELECT quotes.id, quotes.line, quotes.portal :: edition,
+         read_blob('.\GLaDOS' || quotes.wav) AS voice
+  FROM
+    (VALUES (1, '... you will be missed',       'Portal 1', 'will-be-missed.wav'),
+            (2, 'Two plus two is...ten',        'Portal 1', 'base-four.wav'),
+            (3, 'The facility is ...',          'Portal 2', 'facility-operational.wav'),
+            (4, 'Don''t press that button ...', 'Portal 2', 'press-button.wav')) AS quotes(id,line,portal,wav);
+
+-- Dump table contents, encode (prefix of) BLOB for table output
+SELECT g.id, g.line, g.portal,
+       left(encode(g.voice, 'base64'), 20) AS voice -- output 20 characters of output
+FROM   glados AS g;
+
+-- Extract selected GLaDOS voice line, play the resulting audio file
+-- (on macOS/SoX) via
+--
+--   $ play -q /tmp/GlaDOS-says.wav
+--
+COPY (
+  SELECT translate(encode(g.voice, 'base64'), E'\n', '')
+  FROM   glados AS g
+  WHERE  g.id = 3
+) TO PROGRAM 'base64 -D > /tmp/GlaDOS-says.wav';
+
 ----------------------------------------------------------------------------------------------------
 -- Video 18 :
 ---------------------------------------------------------------------------------------------------- 
