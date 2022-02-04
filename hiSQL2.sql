@@ -479,7 +479,7 @@ COPY (
   SELECT translate(encode(g.voice, 'base64'), E'\n', '')
   FROM   glados AS g
   WHERE  g.id = 3
-) TO PROGRAM 'base64 -D > /tmp/GlaDOS-says.wav';
+) TO PROGRAM 'base64 -D > \tmp\GlaDOS-says.wav';
 
 ----------------------------------------------------------------------------------------------------
 -- Range/interval types and operations
@@ -499,7 +499,7 @@ SELECT '(1, 10]'::int4range;
 -- r₁ ⁅──────────[
 -- r₂            ⁅─────[
 -- r₃   ⁅─────[        ┊
--- p  ･ ┊     ┊        ┊
+-- p  ･ ┊     ┊       ┊
 -- ----------------------> τ
 --      ┊     ┊       ┊         r₁ @> p r₃ <@ r₁ contains, contained by
 --      ┊     ┊       ┊         r₁ -|- r₂ is adjacent to
@@ -523,7 +523,132 @@ SELECT int4range(1, 5, '[]') * '[5, 10)'::int4range;
 -- Geometric objects and operations, use case: shape scanner
 ----------------------------------------------------------------------------------------------------
 
--- 
+-- Geometric Objects :   
+
+-- To construct geometric objects in Postgres, we have predefined syntaxes:   
+
+-- '(A,B)'        - Construct a point
+-- point(A,B)     - Construct a point
+-- line(p₁,p₂)    - Construct a line
+-- lseg(p₁,p₂)    - Construct a line segment
+-- box(p₁,p₂)     - Construct a box
+-- '[p₁,…,pₙ]'     - Construct an open path
+-- '(p₁,…,pₙ)'     - Construct a polygon
+-- circle(p,r)    - Construct a circle
+
+-- Alternative string literal syntax (see PostgreSQL docs):
+-- '((P₁,R₁),(P₂,R₂))'::lseg, '<(P,R),9>'::circle, ...
+
+-- Querying Geometric Objects : 
+
+-- SYNTAX             OPERATION
+
+-- +, -               translate 
+-- area(･)            area
+-- *                  scale/rotate
+-- height(･)          height of box
+-- @-@                length/circumference 
+-- width(･)           width of box
+-- @@                 center 
+-- bound_box(･,･)     bounding box
+-- <->                distance between 
+-- diameter(･)        diameter of circle
+-- &&                 overlaps? 
+--  center(･)         center
+-- <<                 strictly left of? 
+-- isclosed(･)        path closed?
+-- ?-│                is perpendicular? 
+-- npoints(･)         # of points in path
+-- @>                 contains? 
+-- pclose(･)          close an open path
+
+-- ‹p›[0], ‹p›[1] to access x/y coordinate of point p.
+
+-- Example:
+
+-- Estimate the value of π using the "Monte Carlo method":
+--
+-- ➊ Place circle c with r = 0.5 at point (0.5, 0.5).
+--   Area of c is πr² = π/4.
+-- ➋ Generate random point p in unit square (0,0)-(1,1).
+--   Area of square is 1.
+-- ⇒ Chance of p being in c = (π/4)/1 = π/4.
+--
+--               π/4 = nᵢₙ/n
+
+
+-- # of random points to generate
+-- \set N 100000
+
+SELECT (COUNT(*)::float / 100000) * 4 AS π
+FROM   generate_series(1, 100000) AS _
+WHERE  circle(point(0.5,0.5), 0.5) @> point(random(),random());
+--                                 ↑
+--                       circle contains point?
+
+-- USE CASE : SHAPE SCANNER
+
+-- Given an unknown shape (a polygon geometric object):
+-- 1. Perform horizontal “scan” to trace minimum/maximum(i.e., bottom/top) R values for each P.
+-- 2. Use bottom/top traces to render the shape.
+
+-- SQL Query:      
+
+-- Perform a horizontal "scan" of a shape to trace its top and
+-- bottom edges.
+--
+--
+-- Demonstrates:
+-- - WITH (non-recursive CTEs)
+-- - generate_series()
+-- - geometric objects and operations
+
+
+-- Scan RESOLUTION in x/y dimension
+-- \set RESOLUTION 0.01
+-- Shape id to scan
+-- \set SHAPE 3
+
+  WITH
+  -- A table of shapes (polygons)
+  shapes(id, shape) AS (
+    VALUES (1, '((0,0), (1,1.5), (2,0))'::polygon),              -- △
+           (2, polygon(box(point(0.5,0.5) , point(1.2, 3.0)))),  -- □
+           (3, polygon(circle(point(0,0), 1))),                  -- ○ (12 points)
+           (4, '((0,1), (2,2), (0,3), (2,4),
+                 (3,2), (5,1), (3,0))'::polygon)                 -- ⭔ (complex)
+  ),
+  -- Determine center, width, and height of box around shape s
+  -- ⚠ The repeated computation of box(s.shape) calls for use of LATERAL
+  --    (see replacement query for bboxes below)
+  boxes(id, center, w, h) AS (
+    SELECT s.id,
+           center(box(s.shape))  AS center,
+           width(box(s.shape))   AS width,
+           height(box(s.shape))  AS height
+    FROM   shapes AS s
+  ),
+  -- Perform horizontal scan of all shapes:
+  -- 1. The bounding boxes provide scan ranges in x/y dimensions
+  -- 2. Test whether point (x,y) lies in shape
+  -- 3. Record minimum (bottom) and maximum (top) y value for each x
+  trace(id, x, bottom, top) AS (
+    SELECT  s.id, x, MIN(y) AS bottom, MAX(y) AS top
+    FROM    shapes AS s, boxes AS b,
+            generate_series((b.center[0] - b.w / 2) :: numeric, (b.center[0] + b.w / 2) :: numeric, 0.01) AS x,
+            generate_series((b.center[1] - b.h / 2) :: numeric, (b.center[1] + b.h / 2) :: numeric, 0.01) AS y
+    WHERE   s.id = b.id
+    AND     point(x,y) <@ s.shape
+    GROUP BY s.id, x
+    ORDER BY s.id, x
+  )
+  SELECT t.x, t.bottom, t.top
+  FROM   trace AS t
+  WHERE  t.id = 3
+
+-- The given set of points can be copied into a CSV file and plotted using gnuplot or matplotlib
+-- for a visual representation.
+
 
 ----------------------------------------------------------------------------------------------------
 -- 
