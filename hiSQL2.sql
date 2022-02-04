@@ -37,8 +37,8 @@ INSERT INTO T VALUES
 -- 2) <type1> :: <type2>
 -- 3) <type2>(<type1>)
 
--- SQL performs implicit casts when the column types are unambiguous. (Say on of the columns during 
--- insertion has value null for a record). 
+-- SQL performs implicit casts when the column types are unambiguous. 
+-- (Say on of the columns during insertion has value null for a record). 
 -- Type casting can fail at runtime in certain cases.
 -- SQL also supports casting complex literals(text to json, date, csv etc.)
 
