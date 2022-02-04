@@ -1,6 +1,8 @@
 
 -- Key Concepts Covered :  Built-in data types, casting, string data type, numeric data type, 
 -- date / time / timestamps, intervals, user defined data types, bit strings, blobs, bit arrays,
+-- range / interval types and operations, geometric objects and operations and their use cases,
+-- JSON support, sequences and key generation
 
 ----------------------------------------------------------------------------------------------------
 -- PostgreSQL built-in data types, CAST, casting text literals
@@ -649,9 +651,8 @@ WHERE  circle(point(0.5,0.5), 0.5) @> point(random(),random());
 -- The given set of points can be copied into a CSV file and plotted using gnuplot or matplotlib
 -- for a visual representation.
 
-
 ----------------------------------------------------------------------------------------------------
--- 
+-- JSON support (type jsonb) [and XML support]
 ----------------------------------------------------------------------------------------------------
 
 -- 
