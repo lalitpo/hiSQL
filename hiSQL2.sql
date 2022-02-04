@@ -387,6 +387,17 @@ ORDER BY s.film; -- s.release; -- yields chronological order
 
 -- Bit strings : 
 
+-- Data type bit stores strings of n binary digits(storage: 1 byte per 8 bits + constant small overhead)
+
+-- Literals :
+
+-- SELECT B'00101010', X'2A', '00101010'::bit(8), 42::bit(8)
+
+-- Bitwise operations: & (and), | (or), # (xor), ~ (not),
+-- <</>> (shift left/right), get_bit(･,･), set_bit(･,･)
+
+-- String-like operations: || (concatenation), length(･),
+-- bit_length(･), octet_length(･), position(･ in ･), …
 
 ----------------------------------------------------------------------------------------------------
 -- Video 18 :
