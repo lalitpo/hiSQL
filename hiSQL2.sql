@@ -715,9 +715,9 @@ SELECT ('{ "a":0, "b": { "b₁":1, "b₂":2 } }' :: jsonb -> 'b' ->> 'b₂')::in
 
 -- Constructing JSON from SQL :   
 
+-- row_to_json(･)::jsonb
+-- Convert a single SQL row into a JSON ‹object›. Column names turn into JSON field names:
 
-
--------------------------------
 -- Goal: Convert table into JSON (jsonb) array of objects
 
 -- Step ➊: convert each row into a JSON object (columns ≡ fields)
@@ -748,7 +748,6 @@ CREATE TEMPORARY TABLE like_T_but_as_JSON(a) AS
 
 TABLE like_T_but_as_JSON;
 
--------------------------------
 -- Goal: Convert JSON object (array of regular objects) into a table:
 --       can we do a round-trip and get back the original T?
 
@@ -792,9 +791,11 @@ FROM   jsonb_array_elements((TABLE like_T_but_as_JSON)) AS objs(o),
 SELECT t.*
 FROM   jsonb_populate_recordset(NULL :: T, (TABLE like_T_but_as_JSON)) AS t;
 
+-- XML Support :   
 
+-- XML support in SQL predates JSON support. Both are similar in nature.
 ----------------------------------------------------------------------------------------------------
---  
+-- Sequences, key generation via GENERATED ALWAYS AS IDENTITY
 ----------------------------------------------------------------------------------------------------
 
 -- 
