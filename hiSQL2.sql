@@ -798,6 +798,80 @@ FROM   jsonb_populate_recordset(NULL :: T, (TABLE like_T_but_as_JSON)) AS t;
 -- Sequences, key generation via GENERATED ALWAYS AS IDENTITY
 ----------------------------------------------------------------------------------------------------
 
--- 
+-- Sequences :
+
+-- Sequences represent counters of type bigint (−2⁶³…2⁶³-1).
+-- Typically used to implement row identity/name generators:
+
+-- CREATE SEQUENCE ‹seq› -- sequence name
+-- [ INCREMENT ‹inc› ] -- advance by ‹inc› (default: 1≡↑)
+-- [ MINVALUE ‹min› ] -- range of valid counter values
+-- [ MAXVALUE ‹max› ] -- (defaults: [1…2⁶³-1])
+-- [ START ‹start› ] -- start (default: ↑‹min›, ↓‹max›)
+-- [ [NO] CYCLE ] -- wrap around or error(≡ default)?
+
+-- Columns can be tied to a sequence for key generation:
+
+-- CREATE TABLE ‹T› (…,‹c› int GENERATED ALWAYS AS IDENTITY,…)
+--               ⇩
+--CREATE SEQUENCE <T›_‹c›_seq;
+
+-- GENERATED ALWAYS AS IDENTITY creates a sequence and
+-- automatically draws values to populate key columns.
+
+-- ⚠ Sequences and table share a common name space, watch out for
+--   collisions
+
+DROP SEQUENCE IF EXISTS seq;
+CREATE SEQUENCE seq START 41 MAXVALUE 100 CYCLE;
+
+SELECT nextval('seq');      -- ⇒ 41
+SELECT nextval('seq');      -- ⇒ 42
+SELECT currval('seq');      -- ⇒ 42
+SELECT setval ('seq',100);  -- ⇒ 100 (+ side effect)
+SELECT nextval('seq');      -- ⇒ 1   (wrap-around)
+
+-- Sequences are system-maintained single-row/single-column tables:
+--
+TABLE seq;
+
+-- ┌───────────────┬─┈┈─┬───────────┐
+-- │ sequence_name │    │ is_called │
+-- ├───────────────┼─┈┈─┼───────────┤
+-- │ seq           │    │ t         │ ← has nextval() been called already?
+-- └───────────────┴─┈┈─┴───────────┘
+
+--                     is_called
+--                         ↓
+SELECT setval ('seq',100,false);  -- ⇒ 100 (+ side effect)
+SELECT nextval('seq');            -- ⇒ 100
+
+
+DROP TABLE IF EXISTS self_concious_T;
+CREATE TABLE self_concious_T (me int GENERATED ALWAYS AS IDENTITY,
+                              a  int ,
+                              b  text,
+                              c  boolean,
+                              d  int);
+
+
+--                    column me missing (⇒ receives GENERATED identity value)
+--                         ╭───┴──╮
+INSERT INTO self_concious_T(a,b,c,d) VALUES
+  (1, 'x',  true, 10);
+
+INSERT INTO self_concious_T(a,b,c,d) VALUES
+  (2, 'y',  true, 40);
+
+INSERT INTO self_concious_T(a,b,c,d) VALUES
+  (5, 'x', true,  NULL),
+  (4, 'y', false, 20),
+  (3, 'x', false, 30)
+  RETURNING me, c;
+--            ↑
+--     General INSERT feature:
+--     Any list of expressions involving the column name of
+--     the inserted rows (or * to return entire inserted rows)
+--     ⇒ User-defined SQL functions (UDFs)
 
 ----------------------------------------------------------------------------------------------------
